@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package cart_service;
+
+
+option go_package = "./pb";
+
+import "msecommerce/product_service/grpc/pb/product.pb";
+
+
+message CartRequest {
+ uint64 user_id = 1;
+}
+message CartResponse{
+    uint64 user_id =1;
+    uint64 cart_id =2;
+    bool is_empty =3;
+}
+message AddTOCartRequest{
+    uint64 user_id = 1;
+    uint64 product_id =2;
+    uint64  quantity =3;
+}
+message AddToCartResponse{
+    product.ProductResponse product =1;
+uint64 quantity =2;
+}
+message UpdateQuantityRequest{
+    uint64 user_id =1;
+    uint64 product_id =2;
+    uint64 quantity =3;
+    bool is_increased =4 ;
+}
+service CartService{
+    rpc CreateCart(CartRequest)returns(CartResponse);
+    rpc Get(CartRequest)returns(stream AddToCartResponse);
+    rpc AddtoCart(AddTOCartRequest) returns(AddToCartResponse);
+    rpc Delete(AddTOCartRequest)returns(AddToCartResponse);
+    rpc UpdateQuantity(CartRequest)returns(CartResponse);
+}
