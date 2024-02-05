@@ -85,14 +85,14 @@ func (p *ProductDatabase) GetAll() ([]models.Product, error) {
 	return res, nil
 }
 
-// func (p *ProductDatabase) GetMultiple(reqs []uint64 ) ([]models.Product, error) {
-// 	var res []models.Product
-// 	for _, req := range reqs {
-// 		proRes, err := p.Get(req)
-// 		if err != nil {
-// 			return nil, err
-// 		}
-// 		res = append(res, proRes)
-// 	}
-// 	return res, nil
-// }
+func (p *ProductDatabase) GetMultiple(reqs []uint64 ) ([]models.Product, error) {
+	var res []models.Product
+	for _, req := range reqs {
+		proRes, err := p.Get(req)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, proRes)
+	}
+	return res, nil
+}

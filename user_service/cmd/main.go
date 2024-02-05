@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 
-	"github.com/msecommerce/cart_service/pkg/config"
-	"github.com/msecommerce/cart_service/pkg/di"
+	"github.com/msecommerce/user_service/pkg/config"
+	"github.com/msecommerce/user_service/pkg/di"
 )
 
 func main() {

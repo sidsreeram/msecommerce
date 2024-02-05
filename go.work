@@ -1,6 +1,8 @@
 go 1.21.5
 
 use (
+	./api_gateway
 	./cart_service
 	./product_service
+	./user_service
 )

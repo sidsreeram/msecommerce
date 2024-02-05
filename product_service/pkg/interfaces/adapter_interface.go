@@ -8,5 +8,5 @@ type ProductAdapter interface {
 	Delete(id uint64) (string,error)
 	Get(id uint64) (models.Product, error)
 	GetAll() ([]models.Product, error)
-	// GetMultiple(reqs []uint64 ) ([]models.Product, error)
+	GetMultiple(reqs []uint64 ) ([]models.Product, error)
 }
