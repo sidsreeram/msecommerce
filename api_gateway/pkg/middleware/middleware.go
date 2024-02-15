@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	
+
 	"net/http"
 
 	"github.com/graphql-go/graphql"
@@ -32,7 +33,7 @@ func UserMiddleware(next graphql.FieldResolveFn) graphql.FieldResolveFn {
 		if err != nil {
 			return nil, fmt.Errorf("error in validating jwt : %w", err)
 		}
-		useridVal := auth["userID"].(uint)
+		useridVal := auth["userID"].(uint64)
 
 		if useridVal < 1 {
 			return nil, fmt.Errorf("UserID is invalid")
@@ -47,7 +48,7 @@ func AdminMiddleware(next graphql.FieldResolveFn) graphql.FieldResolveFn {
 		r := p.Context.Value("request").(*http.Request)
 		cookiee, err := r.Cookie("jwtToken")
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%v", err)
 		}
 		if cookiee == nil {
 			return nil, fmt.Errorf("You are not logged in please login")
@@ -64,9 +65,11 @@ func AdminMiddleware(next graphql.FieldResolveFn) graphql.FieldResolveFn {
 		if useridVal < 1 {
 			return nil, fmt.Errorf("UserID is invalid")
 		}
-		if !auth["isAdmin"].(bool) {
+		
+		if !auth["isadmin"].(bool){
 			return nil, fmt.Errorf("Ooops You don't have admin Previlages ! :%w", err)
 		}
+
 		ctx = context.WithValue(ctx, "userID", useridVal)
 		p.Context = ctx
 		return next(p)

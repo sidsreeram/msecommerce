@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+
 	"net/http"
 
 	"github.com/graphql-go/graphql"
@@ -76,7 +77,7 @@ var ProductType = graphql.NewObject(
 			"description": &graphql.Field{
 				Type: graphql.String,
 			},
-			"instrock": &graphql.Field{
+			"instock": &graphql.Field{
 				Type: graphql.Boolean,
 			},
 		},
@@ -120,9 +121,8 @@ var RootQuery = graphql.NewObject(
 						Type: graphql.NewNonNull(graphql.Int),
 					},
 				},
-				Resolve: (func(p graphql.ResolveParams) (interface{}, error) {
+				Resolve: middleware.AdminMiddleware(func(p graphql.ResolveParams) (interface{}, error) {
 					return UsersrvCon.GetAdmin(context.Background(), &pb.UserRequest{Id: uint64(p.Args["id"].(int))})
-					// return UsersrvConn.GetAdmin(context.Background(), &pb.UserRequest{Id: uint32(p.Args["id"].(int))})
 				}),
 			},
 			"userdetails": &graphql.Field{
@@ -141,7 +141,7 @@ var RootQuery = graphql.NewObject(
 				Resolve: middleware.AdminMiddleware(func(p graphql.ResolveParams) (interface{}, error) {
 					stream, err := UsersrvCon.GetAllUsers(context.Background(), &emptypb.Empty{})
 					if err != nil {
-						return nil, fmt.Errorf("Unable to get all users @graphql: %w", err)
+						return nil, fmt.Errorf("unable to get all users @graphql: %w", err)
 
 					}
 
@@ -152,16 +152,15 @@ var RootQuery = graphql.NewObject(
 							break
 						}
 						if err != nil {
-							return nil, fmt.Errorf("Error in receiving all users: %w", err)
+							return nil, fmt.Errorf("error in receiving all users: %w", err)
 						}
 
 						userMap := map[string]interface{}{
-							"id":     user.UserId,
+							"id":     user.Id,
 							"name":   user.Name,
 							"email":  user.Email,
 							"mobile": user.Mobile,
 						}
-						log.Println(user.Email)
 
 						users = append(users, userMap)
 					}
@@ -177,9 +176,15 @@ var RootQuery = graphql.NewObject(
 					},
 				},
 				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-					return ProductsrvCon.Get(context.Background(), &pb.ProductIdRequest{
+					productdetails,err := ProductsrvCon.Get(context.Background(), &pb.ProductIdRequest{
 						Id: uint64(p.Args["id"].(int)),
 					})
+					if err !=nil {
+						return nil ,fmt.Errorf("error in getting product details : %w",err)
+					}
+					
+					log.Println(productdetails.Name)
+					return productdetails ,nil
 				},
 			},
 			"allproducts": &graphql.Field{
@@ -187,7 +192,7 @@ var RootQuery = graphql.NewObject(
 				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
 					stream, err := ProductsrvCon.GetAll(context.Background(), &emptypb.Empty{})
 					if err != nil {
-						return nil, fmt.Errorf("Unable to get all products @graphql: %w", err)
+						return nil, fmt.Errorf("unable to get all products @graphql: %w", err)
 					}
 
 					var products []map[string]interface{}
@@ -197,7 +202,7 @@ var RootQuery = graphql.NewObject(
 							break
 						}
 						if err != nil {
-							return nil, fmt.Errorf("Error receiving product: %w", err)
+							return nil, fmt.Errorf("error receiving product: %w", err)
 						}
 
 						productMap := map[string]interface{}{
@@ -217,12 +222,12 @@ var RootQuery = graphql.NewObject(
 			},
 			"cart": &graphql.Field{
 				Type: graphql.NewList(CartItemType),
-				Resolve: (func(p graphql.ResolveParams) (interface{}, error) {
-					userId := p.Context.Value("userID").(uint)
-					req := &pb.CartRequest{UserId: uint64(userId)}
+				Resolve: middleware.UserMiddleware(func(p graphql.ResolveParams) (interface{}, error) {
+					userId := p.Context.Value("userID").(uint64)
+					req := &pb.CartRequest{UserId: userId}
 					stream, err := CartsrvCon.Get(context.Background(), req)
 					if err != nil {
-						return nil, fmt.Errorf("Unable to get all products @graphql: %w", err)
+						return nil, fmt.Errorf("unable to get all products @graphql: %w", err)
 					}
 
 					var cartItem []map[string]interface{}
@@ -232,7 +237,7 @@ var RootQuery = graphql.NewObject(
 							break
 						}
 						if err != nil {
-							return nil, fmt.Errorf("Error receiving product: %w", err)
+							return nil, fmt.Errorf("error receiving product: %w", err)
 						}
 
 						cartMap := map[string]interface{}{
@@ -280,12 +285,15 @@ var Mutation = graphql.NewObject(
 						return nil, fmt.Errorf("error in passing arguments for user signup :%w", err)
 					}
 
-					_, err = CartsrvCon.CreateCart(context.TODO(), &pb.CartRequest{UserId: user.UserId})
+					_, err = CartsrvCon.CreateCart(context.TODO(), &pb.CartRequest{UserId: user.Id})
+					if err != nil {
+						return nil , fmt.Errorf("error in creating cart for user: %v",err)
+					} 
 
 					w := p.Context.Value("httpResponseWriter").(http.ResponseWriter)
 					// ctx := context.WithValue(context.Background(), "httpResponseWriter", w)
 
-					tokenstr, err := authorize.GenerateJwt(user.UserId, user.IsAdmin, Secret)
+					tokenstr, err := authorize.GenerateJwt(user.Id, user.IsAdmin, Secret)
 					if err != nil {
 						return nil, fmt.Errorf("error in generating jwt token at signup :%w", err)
 
@@ -316,21 +324,24 @@ var Mutation = graphql.NewObject(
 						Password: p.Args["password"].(string),
 						IsAdmin:  false,
 					})
+					
 					if err != nil {
 						return nil, fmt.Errorf("error in passing paramter into userlogin :%w", err)
 					}
 					w := p.Context.Value("httpResponseWriter").(http.ResponseWriter)
 
-					tokenString, err := authorize.GenerateJwt((user.UserId), false, Secret)
+					tokenString, err := authorize.GenerateJwt((user.Id), false, Secret)
 
 					if err != nil {
 						return nil, fmt.Errorf("error in generating jwt :%w", err)
 					}
 					http.SetCookie(w, &http.Cookie{
-						Name:  "jwttoken",
+						Name:  "jwtToken",
 						Value: tokenString,
 						Path:  "/",
 					})
+				
+
 					return user, nil
 				},
 			},
@@ -354,14 +365,15 @@ var Mutation = graphql.NewObject(
 					if err != nil {
 						return nil, fmt.Errorf("error in passing parameter into adminlogin :%w", err)
 					}
+
 					w := p.Context.Value("httpResponseWriter").(http.ResponseWriter)
-					tokenString, err := authorize.GenerateJwt(admin.UserId, true, Secret)
+					tokenString, err := authorize.GenerateJwt(admin.Id, true, Secret)
 					if err != nil {
 						return nil, fmt.Errorf("error in generating jwt :%w", err)
 					}
 
 					http.SetCookie(w, &http.Cookie{
-						Name:  "jwttoken",
+						Name:  "jwtToken",
 						Value: tokenString,
 						Path:  "/",
 					})
@@ -390,10 +402,10 @@ var Mutation = graphql.NewObject(
 						Name:     p.Args["name"].(string),
 						Email:    p.Args["email"].(string),
 						Password: p.Args["password"].(string),
-						Mobile:   p.Args["mobile"].(uint32),
+						Mobile:   uint32(p.Args["mobile"].(int)),
 					})
 					if err != nil {
-						return nil, fmt.Errorf("Error in adding new admin :%w", err)
+						return nil, fmt.Errorf("error in adding new admin :%w", err)
 					}
 					return admin, nil
 				}),
@@ -420,8 +432,8 @@ var Mutation = graphql.NewObject(
 				Resolve: middleware.AdminMiddleware(func(p graphql.ResolveParams) (interface{}, error) {
 					products, err := ProductsrvCon.Add(context.Background(), &pb.ProductRequest{
 						Name:        p.Args["name"].(string),
-						Quantity:    p.Args["quantity"].(uint64),
-						Price:       p.Args["price"].(uint64),
+						Quantity:    uint64(p.Args["quantity"].(int)),
+						Price:       uint64(p.Args["price"].(int)),
 						Description: p.Args["description"].(string),
 						Instock:     p.Args["instock"].(bool),
 					})
@@ -436,7 +448,7 @@ var Mutation = graphql.NewObject(
 				Type: ProductType,
 				Args: graphql.FieldConfigArgument{
 					"id": &graphql.ArgumentConfig{
-						Type: graphql.NewNonNull(graphql.ID),
+						Type: graphql.NewNonNull(graphql.Int),
 					},
 					"quantity": &graphql.ArgumentConfig{
 						Type: graphql.NewNonNull(graphql.Int),
@@ -450,9 +462,9 @@ var Mutation = graphql.NewObject(
 				},
 				Resolve: middleware.AdminMiddleware(func(p graphql.ResolveParams) (interface{}, error) {
 					return ProductsrvCon.Update(context.Background(), &pb.UpdateProductRequest{
-						Id:        p.Args["id"].(uint64),
-						Quantity:  p.Args["quantity"].(uint64),
-						Price:     p.Args["price"].(uint64),
+						Id:        uint64(p.Args["id"].(int)),
+						Quantity:  uint64(p.Args["quantity"].(int)),
+						Price:     uint64(p.Args["price"].(int)),
 						Increased: p.Args["increase"].(bool),
 					})
 				}),
@@ -468,23 +480,22 @@ var Mutation = graphql.NewObject(
 					},
 				},
 				Resolve: middleware.UserMiddleware(func(p graphql.ResolveParams) (interface{}, error) {
-					log.Println("lowgafds")
 					userIDVal, ok := p.Context.Value("userID").(uint64)
-					log.Println(userIDVal)
 					if !ok {
-
-						return nil, fmt.Errorf("userID not set in context or not of type uint")
+						return nil, fmt.Errorf("userID not set in context or not of type uint64")
 					}
 
 					cart, err := CartsrvCon.AddtoCart(context.TODO(), &pb.AddTOCartRequest{
 						UserId:    userIDVal,
-						ProductId: uint64(p.Args["product_id"].(uint64)),
-						Quantity:  uint64(p.Args["quantity"].(uint64)),
+						ProductId: uint64(p.Args["product_id"].(int)),
+						Quantity:  uint64(p.Args["quantity"].(int)),
 					})
+					
 					if err != nil {
-						return nil, fmt.Errorf("Error in passing arguments to cart :%w", err)
+						return nil, fmt.Errorf("error in passing arguments to cart :%w", err)
 					}
 					return cart, nil
+
 				}),
 			},
 			"removefromcart": &graphql.Field{
@@ -495,15 +506,17 @@ var Mutation = graphql.NewObject(
 					},
 				},
 				Resolve: middleware.UserMiddleware(func(p graphql.ResolveParams) (interface{}, error) {
-					userIdval := p.Context.Value("userID").(uint)
+					userIdval := p.Context.Value("userID").(uint64)
 					cart, err := CartsrvCon.Delete(context.TODO(), &pb.AddTOCartRequest{
 						UserId:    uint64(userIdval),
-						ProductId: uint64(p.Args["product_id"].(uint64)),
+						ProductId: uint64(p.Args["product_id"].(int)),
 					})
 					if err != nil {
 						return nil, fmt.Errorf("error in removing from cart :%w", err)
 
 					}
+				
+
 					return cart, nil
 				}),
 			},
@@ -529,7 +542,7 @@ var Mutation = graphql.NewObject(
 						IsIncreased: p.Args["isIncreasing"].(bool),
 					})
 					if err != nil {
-						return nil, fmt.Errorf("Error in accessing params of update qauntity :%w", err)
+						return nil, fmt.Errorf("error in accessing params of update qauntity :%w", err)
 					}
 					return cart, nil
 				}),

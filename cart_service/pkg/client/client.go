@@ -18,6 +18,7 @@ func NewProductClient(c config.Config) *ProductClient {
 	if err != nil {
 		log.Fatalln("client connection failiure", err)
 	}
+	log.Println("connection success")
 	return &ProductClient{
 		Client: pb.NewProductServiceClient(cc),
 	}

@@ -3,7 +3,7 @@ module github.com/msecommerce/api_gateway
 go 1.21.5
 
 require (
-	github.com/sidsreeram/msproto v0.0.0-20240201131550-82a7c1dc43e6
+	github.com/sidsreeram/msproto v0.0.0-20240212092919-267a62d97eb2
 	github.com/spf13/viper v1.18.2
 )
 

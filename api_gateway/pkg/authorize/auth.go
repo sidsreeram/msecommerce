@@ -2,7 +2,8 @@ package authorize
 
 import (
 	"fmt"
-	"log"
+	
+
 	"time"
 
 	"github.com/golang-jwt/jwt"
@@ -19,7 +20,6 @@ type Payload struct {
 func GenerateJwt(userID uint64, isAdmin bool, secret []byte) (string, error) {
 	// Set the expiration time for the token.
 	expirationTime := time.Now().Add(48 * time.Hour)
-
 	// Create the JWT claims, which includes the user information and expiry time.
 	claims := &Payload{
 		UserID:  userID,
@@ -28,7 +28,7 @@ func GenerateJwt(userID uint64, isAdmin bool, secret []byte) (string, error) {
 			ExpiresAt: expirationTime.Unix(),
 		},
 	}
-       log.Println(claims.Id)
+       
 	// Declare the token with the algorithm used for signing, and the claims.
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
@@ -73,6 +73,7 @@ func ValidateToken(tokenString string, secret []byte) (map[string]interface{}, e
 		"isadmin": cliams.IsAdmin,
 		
 	}
+  
 
 	if cliams.ExpiresAt < time.Now().Unix() {
 		return nil, fmt.Errorf("token expired")

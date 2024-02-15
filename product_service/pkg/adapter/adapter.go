@@ -1,6 +1,8 @@
 package adapter
 
 import (
+	"log"
+
 	"github.com/msecommerce_product_service/pkg/interfaces"
 	"github.com/msecommerce_product_service/pkg/models"
 	"gorm.io/gorm"
@@ -20,10 +22,16 @@ func (p *ProductDatabase) Add(req models.Product)(models.Product,error){
 }
 func (p *ProductDatabase) Get(id uint64) (models.Product, error) {
 	var pro models.Product
-	err := p.DB.First(&pro, id).Error
+query := "SELECT id, name, price, quantity, description, in_stock FROM products WHERE id=?"
+
+
+
+	err :=  p.DB.Raw(query,id).Scan(&pro).Error
 	if err != nil {
 		return models.Product{}, err
 	}
+	log.Println(pro.Name)
+	
 	return models.Product{
 		Id:          pro.Id,
 		Name:        pro.Name,

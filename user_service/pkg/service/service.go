@@ -54,10 +54,10 @@ func (u *UserService) UserSignup(ctx context.Context, req *pb.SignupRequest) (*p
 		return nil, fmt.Errorf("Error in User signup :%w", err)
 	}
 	return &pb.UserResponse{
-		UserId: res.Id,
-		Name: res.Name,
-		Email: res.Email,
-		Mobile: res.Mobile,
+		Id:  res.Id,
+		Name:    res.Name,
+		Email:   res.Email,
+		Mobile:  res.Mobile,
 		IsAdmin: res.Is_Admin,
 	}, err
 }
@@ -68,10 +68,10 @@ func (u *UserService) Getuser(ctx context.Context, req *pb.UserRequest) (*pb.Use
 		return nil, err
 	}
 	return &pb.UserResponse{
-		UserId:  user.Id,
-		Name:    user.Name,
-		Email:   user.Email,
-		Mobile:  user.Mobile,
+		Id: user.Id,
+		Name:   user.Name,
+		Email:  user.Email,
+		Mobile: user.Mobile,
 	}, nil
 }
 
@@ -80,9 +80,9 @@ func (u *UserService) GetAdmin(ctx context.Context, req *pb.UserRequest) (*pb.Us
 	if err != nil {
 		return nil, err
 	}
-	log.Println(admin.Id)
+
 	return &pb.UserResponse{
-		UserId:  admin.Id,
+		Id:  admin.Id,
 		Name:    admin.Name,
 		Email:   admin.Email,
 		Mobile:  admin.Mobile,
@@ -96,9 +96,9 @@ func (u *UserService) GetAllUsers(empty *emptypb.Empty, stream pb.UserService_Ge
 	}
 	for _, user := range users {
 		userResponse := &pb.UserResponse{
-			UserId:   user.Id,
-			Name:    user.Name,
-			Email:   user.Email,
+			Id: user.Id,
+			Name:   user.Name,
+			Email:  user.Email,
 			Mobile: uint32(user.Mobile),
 		}
 		if err := stream.Send(userResponse); err != nil {
@@ -108,7 +108,6 @@ func (u *UserService) GetAllUsers(empty *emptypb.Empty, stream pb.UserService_Ge
 	return nil
 }
 
-
 func (u *UserService) GetAllAdmins(empty *emptypb.Empty, stream pb.UserService_GetAllAdminsServer) error {
 	admins, err := u.Adapter.GetAllAdmins()
 	if err != nil {
@@ -116,7 +115,7 @@ func (u *UserService) GetAllAdmins(empty *emptypb.Empty, stream pb.UserService_G
 	}
 	for _, admin := range admins {
 		adminResponse := &pb.UserResponse{
-			UserId:  admin.Id,
+			Id:  admin.Id,
 			Name:    admin.Name,
 			Email:   admin.Email,
 			Mobile:  admin.Mobile,
@@ -129,40 +128,42 @@ func (u *UserService) GetAllAdmins(empty *emptypb.Empty, stream pb.UserService_G
 	return nil
 }
 
-
 func (u *UserService) UserLogin(ctx context.Context, req *pb.LoginRequest) (*pb.UserResponse, error) {
-	pass, err := u.Adapter.FindByEmail(req.Email,req.IsAdmin)
-	if err != nil {
-		return nil, err
-	}
-	if req.IsAdmin  {
-	    Userres, err:=	u.Adapter.AdminLogin(req.Email,req.Password)
-		if err !=nil{
-			return nil,err
+
+	// Search for users in the user table, admins in the admin table
+	if req.IsAdmin {
+		// Admin login
+		adminres, err := u.Adapter.AdminLogin(req.Email, req.Password)
+		if err != nil {
+			return nil, err
 		}
-		log.Println(Userres.Id)
 		return &pb.UserResponse{
-			UserId: Userres.Id,
-			Name: Userres.Name,
-			Email: Userres.Email,
-			Mobile: Userres.Mobile,
+			Id:  adminres.Id,
+			Name:    adminres.Name,
+			Email:   adminres.Email,
+			Mobile:  adminres.Mobile,
+			IsAdmin: true,
+		}, nil
+	} else {
+		// Regular user login
+		pass, err := u.Adapter.FindByEmail(req.Email, false) // Search in the user table
+		if err != nil {
+			return nil, err
+		}
+		err = helpers.VerifyPassword(pass, req.Password)
+		if err != nil {
+			return nil, errors.New("invalid password")
+		}
+		userres, err := u.Adapter.UserLogin(req.Email, pass)
+		log.Println(userres.Id) // Use UserLogin for regular users
+		return &pb.UserResponse{
+			Id:  userres.Id,
+			Name:    userres.Name,
+			Email:   userres.Email,
+			Mobile:  userres.Mobile,
 			IsAdmin: false,
-		},nil
+		}, nil
 	}
-
-	err = helpers.VerifyPassword(pass, req.Password)
-	if err != nil {
-		return nil, errors.New("invalid password")
-	}
-
-  adminres,err:= u.Adapter.UserLogin(req.Email,pass)
-	return &pb.UserResponse{
-		UserId: adminres.Id,
-		Name: adminres.Name,
-		Email: adminres.Email,
-		Mobile: adminres.Mobile,
-		IsAdmin: true,
-	}, nil
 }
 
 func (u *UserService) AddAdmin(ctx context.Context, req *pb.SignupRequest) (*pb.UserResponse, error) {
@@ -184,7 +185,7 @@ func (u *UserService) AddAdmin(ctx context.Context, req *pb.SignupRequest) (*pb.
 	}
 
 	return &pb.UserResponse{
-		UserId:  admin.Id,
+		Id:  admin.Id,
 		Name:    admin.Name,
 		Email:   admin.Email,
 		Mobile:  admin.Mobile,

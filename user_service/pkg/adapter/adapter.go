@@ -2,6 +2,7 @@ package adapter
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/msecommerce/user_service/pkg/interfaces"
 	"github.com/msecommerce/user_service/pkg/models"
@@ -48,11 +49,15 @@ func (u *UserAdapter) AdminLogin(email, password string) (models.Admins, error) 
 	return admin, nil
 }
 
-func (u *UserAdapter) AddAdmin(admin models.Admins) (models.Admins, error) {
-	if err := u.DB.Create(&admin).Error; err != nil {
-		return models.Admins{}, err
-	}
-	return admin, nil
+func (u *UserAdapter) AddAdmin(req models.Admins) (models.Admins, error) {
+	query:="INSERT INTO admins (name,email,mobile,password,is_admin) VALUES($1,$2,$3,$4,true)RETURNING id,name,email,mobile,is_admin"
+    var admindata models.Admins
+     err:= u.DB.Raw(query,req.Name,req.Email,req.Mobile,req.Password).Scan(&admindata).Error
+	 if err !=nil{
+		return models.Admins{} , fmt.Errorf("error in adding admin to the database : %v",err)
+	 }
+	 log.Println(admindata.Is_Admin)
+	return admindata, nil
 }
 
 func (u *UserAdapter) Getuser(id uint64) (models.User, error) {

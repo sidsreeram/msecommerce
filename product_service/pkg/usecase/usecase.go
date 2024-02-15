@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/msecommerce_product_service/pkg/interfaces"
 	"github.com/msecommerce_product_service/pkg/models"
@@ -90,6 +91,7 @@ func (p *ProductUsecase) Get(ctx context.Context, req *pb.ProductIdRequest) (*pb
 	if err != nil {
 		return nil, err
 	}
+	log.Println(product.Name)
 	return &pb.ProductResponse{
 		Id:          product.Id,
 		Name:        product.Name,

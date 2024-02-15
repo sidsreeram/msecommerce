@@ -12,9 +12,6 @@ import (
 	"github.com/sidsreeram/msproto/pb"
 )
 
-var (
-	ProductClient pb.ProductServiceClient
-)
 
 type CartServiceServer struct {
 	Adapter interfaces.CartAdapter
@@ -28,7 +25,7 @@ func NewCartServiceServer(adapter interfaces.CartAdapter,product *client.Product
 func (c *CartServiceServer) CreateCart(ctx context.Context, req *pb.CartRequest) (*pb.CartResponse, error) {
 	res, err := c.Adapter.CreateCart(models.Cart{UserID: req.UserId})
 	if err != nil {
-		return nil, fmt.Errorf("Error occured in creating user's cart:%w", err)
+		return nil, fmt.Errorf("error occured in creating user's cart:%w", err)
 	}
 	return &pb.CartResponse{CartId: uint64(res.ID), UserId: res.UserID, IsEmpty: true}, nil
 }
@@ -44,7 +41,7 @@ func (c *CartServiceServer) Get(req *pb.CartRequest, stream pb.CartService_GetSe
 	for _, pro := range res {
 		ids = append(ids, &pb.ProductIdRequest{Id: pro.ProductID})
 	}
-	productStream, err := ProductClient.GetMultiple(context.Background(), &pb.ProductMultipleRequest{Ids: ids})
+	productStream, err := c.Product.Client.GetMultiple(context.Background(), &pb.ProductMultipleRequest{Ids: ids})
 	if err != nil {
 		return fmt.Errorf("error happened in getting multiple products: %w", err)
 	}
@@ -58,53 +55,70 @@ func (c *CartServiceServer) Get(req *pb.CartRequest, stream pb.CartService_GetSe
 			fmt.Println(err)
 		}
 	}
+	
 	return nil
 }
 
 func (c *CartServiceServer) AddtoCart(ctx context.Context, req *pb.AddTOCartRequest) (*pb.AddToCartResponse, error) {
-	productRes, err := ProductClient.Get(context.TODO(), &pb.ProductIdRequest{Id: req.ProductId})
+	if c == nil {
+        log.Println("CartServiceServer is nil")
+        return nil,errors.New("error is heree")
+    }
+	productResult, err := c.Product.Client.Get(context.TODO(), &pb.ProductIdRequest{Id: req.ProductId})
 	if err != nil {
 		log.Println(err.Error())
 		return nil, err
 	}
+	
+    //    if productResult.Name == ""{
+	// 	return nil,fmt.Errorf("sorrry the product doesn't exist")
+	//    }
 
-	if productRes.Name == "" {
-		return nil, errors.New("Sorry, the product doesn't exist")
-	}
 
 	item, err := c.Adapter.AddToCart(models.CartItems{
 		ProductID: req.ProductId,
 		Quantity:  req.Quantity,
 	}, req.UserId)
-
+  log.Println(productResult.Name)
 	if err != nil {
 		log.Println(err.Error())
 		return nil, err
 	}
-
 	return &pb.AddToCartResponse{
 		Product: &pb.ProductResponse{
-			Id:       productRes.Id,
-			Name:     productRes.Name,
-			Price:    productRes.Price,
-			Quantity: item.Quantity,
+		 Id: productResult.Id,
+		 Name: productResult.Name,
+		 Price: productResult.Price*item.Quantity,
+		 Description: productResult.Description,
+		 Instock: productResult.Instock,
 		},
+		Quantity: item.Quantity,
 	}, nil
 }
 
 func (c *CartServiceServer) Delete(ctx context.Context, req *pb.AddTOCartRequest) (*pb.AddToCartResponse, error) {
-	productResult, err := ProductClient.Get(context.TODO(), &pb.ProductIdRequest{Id: req.ProductId})
+	productResult, err := c.Product.Client.Get(context.TODO(), &pb.ProductIdRequest{Id: req.ProductId})
+	log.Println(productResult)
 	if err != nil {
-		return nil, fmt.Errorf("Error in geting productId :%w", err)
+		return nil, fmt.Errorf("error in geting productId :%w", err)
 	}
 	if productResult.Name == "" {
-		return nil, fmt.Errorf("A product doesn't find :%w", err)
+		return nil, fmt.Errorf(" product doesn't find :%w", err)
 	}
-	err = c.Adapter.DeleteCartItem(models.CartItems{ProductID: productResult.Id}, req.UserId)
+
+
+	cartitems,err := c.Adapter.DeleteCartItem(models.CartItems{ProductID: productResult.Id}, req.UserId)
 	if err != nil {
-		return nil, fmt.Errorf("Error in Deleting product :%w", err)
+		return nil, fmt.Errorf("error in Deleting product :%w", err)
 	}
-	return &pb.AddToCartResponse{}, nil
+	log.Println(cartitems.Quantity)
+	return &pb.AddToCartResponse{Product: &pb.ProductResponse{
+		Id: productResult.Id,
+		Name: productResult.Name,
+		Price: productResult.Price*productResult.Quantity,
+		Description: productResult.Description,
+		Instock:productResult.Instock,
+	},Quantity: productResult.Quantity-1}, nil
 }
 func (c *CartServiceServer) UpdateQuantity(ctx context.Context, req *pb.UpdateQuantityRequest) (*pb.AddToCartResponse, error) {
 	var res models.CartItems
@@ -126,7 +140,7 @@ func (c *CartServiceServer) UpdateQuantity(ctx context.Context, req *pb.UpdateQu
 			return nil, fmt.Errorf("Error in decrement of quantity :%w", err)
 		}
 	}
-	prod, err := ProductClient.Get(ctx, &pb.ProductIdRequest{Id: res.ProductID})
+	prod, err := c.Product.Client.Get(ctx, &pb.ProductIdRequest{Id: res.ProductID})
 	if err != nil {
 		return nil, fmt.Errorf("Error in getting product client:%w", err)
 	}
