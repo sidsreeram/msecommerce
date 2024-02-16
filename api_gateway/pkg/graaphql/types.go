@@ -183,7 +183,7 @@ var RootQuery = graphql.NewObject(
 						return nil ,fmt.Errorf("error in getting product details : %w",err)
 					}
 					
-					log.Println(productdetails.Name)
+					
 					return productdetails ,nil
 				},
 			},
@@ -246,6 +246,7 @@ var RootQuery = graphql.NewObject(
 						}
 
 						cartItem = append(cartItem, cartMap)
+						log.Println(cartItem)
 					}
 					return cartItem, nil
 
@@ -440,7 +441,14 @@ var Mutation = graphql.NewObject(
 					if err != nil {
 						return nil, fmt.Errorf("error in passing arguments to add products :%w", err)
 					}
-					return products, nil
+					return &pb.ProductResponse{
+						Id: products.Id,
+						Name: products.Name,
+						Quantity: products.Quantity,
+						Price: products.Price,
+						Description: products.Description,
+						Instock: products.Instock,
+					}, nil
 				},
 				),
 			},
@@ -490,11 +498,24 @@ var Mutation = graphql.NewObject(
 						ProductId: uint64(p.Args["product_id"].(int)),
 						Quantity:  uint64(p.Args["quantity"].(int)),
 					})
+					log.Println(cart.Product.GetDescription())
+					log.Println(cart.Product.Name)
+					log.Println("tyuio")
 					
 					if err != nil {
 						return nil, fmt.Errorf("error in passing arguments to cart :%w", err)
 					}
-					return cart, nil
+					return &pb.AddToCartResponse{
+						Product: &pb.ProductResponse{
+							Id: cart.Product.Id,
+							Name: cart.Product.Name,
+							Description: cart.Product.Description,
+							Quantity: cart.Quantity,
+							Price: cart.Quantity*cart.Product.Price,
+							Instock: cart.Product.Instock,
+						},
+						Quantity: cart.Quantity,
+					}, nil
 
 				}),
 			},
@@ -537,14 +558,24 @@ var Mutation = graphql.NewObject(
 					userIdVal := p.Context.Value("userID").(uint64)
 					cart, err := CartsrvCon.UpdateQuantity(context.TODO(), &pb.UpdateQuantityRequest{
 						UserId:      uint64(userIdVal),
-						ProductId:   uint64(p.Args["product_id"].(uint64)),
-						Quantity:    uint64(p.Args["quantity"].(uint64)),
+						ProductId:   uint64(p.Args["product_id"].(int)),
+						Quantity:    uint64(p.Args["quantity"].(int)),
 						IsIncreased: p.Args["isIncreasing"].(bool),
 					})
 					if err != nil {
 						return nil, fmt.Errorf("error in accessing params of update qauntity :%w", err)
 					}
-					return cart, nil
+					return &pb.AddToCartResponse{
+						Product: &pb.ProductResponse{
+							Id: cart.Product.Id,
+							Name: cart.Product.Name,
+							Description: cart.Product.Description,
+							Quantity: cart.Quantity,
+							Price: cart.Quantity*cart.Product.Price,
+							Instock: cart.Product.Instock,
+						},
+						Quantity: cart.Quantity,
+					}, nil
 				}),
 			},
 		},

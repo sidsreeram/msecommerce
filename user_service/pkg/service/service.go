@@ -26,22 +26,22 @@ func NewUserService(adapter interfaces.UserAdapter) *UserService {
 
 func (u *UserService) UserSignup(ctx context.Context, req *pb.SignupRequest) (*pb.UserResponse, error) {
 	if req.Name == "" {
-		return nil, fmt.Errorf("Name Cannot be empty")
+		return nil, fmt.Errorf("name cannot be empty")
 	}
 	if req.Email == "" {
-		return nil, fmt.Errorf("Email cannot be empty")
+		return nil, fmt.Errorf("email cannot be empty")
 	}
 	if req.Mobile == 0 {
-		return nil, fmt.Errorf("Mobile cannot be empty")
+		return nil, fmt.Errorf("mobile cannot be empty")
 	}
 	if req.Password == "" {
-		return nil, fmt.Errorf("Password cannot be empty")
+		return nil, fmt.Errorf("password cannot be empty")
 
 	}
 
 	password, err := helpers.HashPassword(req.Password)
 	if err != nil {
-		return nil, fmt.Errorf("Error in hashing password :%w", err)
+		return nil, fmt.Errorf("error in hashing password :%w", err)
 	}
 	reqest := models.User{
 		Name:     req.Name,
@@ -51,7 +51,7 @@ func (u *UserService) UserSignup(ctx context.Context, req *pb.SignupRequest) (*p
 	}
 	res, err := u.Adapter.UserSignup(reqest)
 	if err != nil {
-		return nil, fmt.Errorf("Error in User signup :%w", err)
+		return nil, fmt.Errorf("error in User signup :%w", err)
 	}
 	return &pb.UserResponse{
 		Id:  res.Id,
@@ -156,6 +156,9 @@ func (u *UserService) UserLogin(ctx context.Context, req *pb.LoginRequest) (*pb.
 		}
 		userres, err := u.Adapter.UserLogin(req.Email, pass)
 		log.Println(userres.Id) // Use UserLogin for regular users
+		if err !=nil {
+			return nil,err
+		}
 		return &pb.UserResponse{
 			Id:  userres.Id,
 			Name:    userres.Name,
@@ -167,19 +170,19 @@ func (u *UserService) UserLogin(ctx context.Context, req *pb.LoginRequest) (*pb.
 }
 
 func (u *UserService) AddAdmin(ctx context.Context, req *pb.SignupRequest) (*pb.UserResponse, error) {
-	hashedPassword, err := helpers.HashPassword(req.Password)
-	if err != nil {
-		return nil, err
-	}
+	// // hashedPassword, err := helpers.HashPassword(req.Password)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	admin := models.Admins{
 		Name:     req.Name,
 		Email:    req.Email,
 		Mobile:   req.Mobile,
-		Password: hashedPassword,
+		Password: req.Password,
 	}
 
-	admin, err = u.Adapter.AddAdmin(admin)
+	admin, err := u.Adapter.AddAdmin(admin)
 	if err != nil {
 		return nil, err
 	}

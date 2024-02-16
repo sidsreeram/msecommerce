@@ -41,6 +41,7 @@ func (c *CartServiceServer) Get(req *pb.CartRequest, stream pb.CartService_GetSe
 	for _, pro := range res {
 		ids = append(ids, &pb.ProductIdRequest{Id: pro.ProductID})
 	}
+	
 	productStream, err := c.Product.Client.GetMultiple(context.Background(), &pb.ProductMultipleRequest{Ids: ids})
 	if err != nil {
 		return fmt.Errorf("error happened in getting multiple products: %w", err)
@@ -115,10 +116,11 @@ func (c *CartServiceServer) Delete(ctx context.Context, req *pb.AddTOCartRequest
 	return &pb.AddToCartResponse{Product: &pb.ProductResponse{
 		Id: productResult.Id,
 		Name: productResult.Name,
-		Price: productResult.Price*productResult.Quantity,
+		Price: productResult.Price*cartitems.Quantity,
 		Description: productResult.Description,
 		Instock:productResult.Instock,
-	},Quantity: productResult.Quantity-1}, nil
+		Quantity: cartitems.Quantity,
+	},Quantity: cartitems.Quantity,}, nil
 }
 func (c *CartServiceServer) UpdateQuantity(ctx context.Context, req *pb.UpdateQuantityRequest) (*pb.AddToCartResponse, error) {
 	var res models.CartItems
@@ -129,7 +131,7 @@ func (c *CartServiceServer) UpdateQuantity(ctx context.Context, req *pb.UpdateQu
 			Quantity:  req.Quantity,
 		}, req.UserId)
 		if err != nil {
-			return nil, fmt.Errorf("Error in incrementing quantity:%w", err)
+			return nil, fmt.Errorf("error in incrementing quantity:%w", err)
 		}
 	} else {
 		res, err = c.Adapter.DecrementQuantity(models.CartItems{
@@ -137,14 +139,21 @@ func (c *CartServiceServer) UpdateQuantity(ctx context.Context, req *pb.UpdateQu
 			Quantity:  req.Quantity,
 		}, req.UserId)
 		if err != nil {
-			return nil, fmt.Errorf("Error in decrement of quantity :%w", err)
+			return nil, fmt.Errorf("error in decrement of quantity :%w", err)
 		}
 	}
 	prod, err := c.Product.Client.Get(ctx, &pb.ProductIdRequest{Id: res.ProductID})
 	if err != nil {
-		return nil, fmt.Errorf("Error in getting product client:%w", err)
+		return nil, fmt.Errorf("error in getting product client:%w", err)
 	}
-	return &pb.AddToCartResponse{Product: prod, Quantity: req.Quantity}, nil
+	return &pb.AddToCartResponse{Product: &pb.ProductResponse{
+		Id: prod.Id,
+		Name: prod.Name,
+		Quantity: req.Quantity,
+		Price: prod.Price*req.Quantity,
+		Description: prod.Description,
+		Instock: prod.Instock,
+	}, Quantity: req.Quantity}, nil
 }
 
 /*

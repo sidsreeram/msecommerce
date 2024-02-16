@@ -23,7 +23,7 @@ func NewProductUsecase(adapter interfaces.ProductAdapter) *ProductUsecase {
 }
 func (p *ProductUsecase) Add(ctx context.Context, req *pb.ProductRequest) (*pb.ProductResponse, error) {
 	if req.Name == "" {
-		return &pb.ProductResponse{}, fmt.Errorf("The Product name cannot be empty")
+		return &pb.ProductResponse{}, fmt.Errorf("the Product name cannot be empty")
 	}
 	reqmodel := models.Product{
 		Name:        req.Name,
@@ -34,8 +34,9 @@ func (p *ProductUsecase) Add(ctx context.Context, req *pb.ProductRequest) (*pb.P
 	}
 	res, err := p.Adapter.Add(reqmodel)
 	if err != nil {
-		return nil, fmt.Errorf("Something Wrong with add Product : %w", err)
+		return nil, fmt.Errorf("something Wrong with add Product : %w", err)
 	}
+	log.Println(res.Id)
 	return &pb.ProductResponse{
 		Id:          res.Id,
 		Name:        res.Name,
@@ -91,7 +92,7 @@ func (p *ProductUsecase) Get(ctx context.Context, req *pb.ProductIdRequest) (*pb
 	if err != nil {
 		return nil, err
 	}
-	log.Println(product.Name)
+	
 	return &pb.ProductResponse{
 		Id:          product.Id,
 		Name:        product.Name,

@@ -17,7 +17,7 @@ func NewProductAdapter(DB *gorm.DB) interfaces.ProductAdapter {
 }
 func (p *ProductDatabase) Add(req models.Product)(models.Product,error){
 	var pro models.Product
-	query := "INSERT INTO products (name,price,quantity,description,in_stock) Values($1,$2,$3,$4,$5) RETURNING name,price,quantity,description,in_stock"
+	query := "INSERT INTO products (name,price,quantity,description,in_stock) Values($1,$2,$3,$4,$5) RETURNING id,name,price,quantity,description,in_stock"
 	return pro,p.DB.Raw(query,req.Name,req.Price,req.Quantity,req.Description,req.InStock).Scan(&pro).Error
 }
 func (p *ProductDatabase) Get(id uint64) (models.Product, error) {
